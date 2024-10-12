@@ -45,7 +45,7 @@ async function init() {
                     WHERE AUT.ESTATUS = 'A'
                     `);
           if(rows.length > 0){
-            res.json({success: true, result: rows});
+            res.status(200).json({success: true, result: rows});
           }
           else{
             res.json({success: false, message: 'No existen registros'});
@@ -56,7 +56,43 @@ async function init() {
         finally{
           connection.release();
         }
-      });
+    });
+
+    app.get('/api/login', async (req, res) => {
+        const { user, password } = req.query;
+        try {
+          if(user && password){
+            console.log({user:user, password:password});
+            connection = await pool.getConnection();
+            const [rows] = await connection.execute('SELECT nombre, segundo_nombre, apellido_p, apellido_m, usuario, sexo_genero, password, imagen from USUARIO WHERE USUARIO = ?', [user]);
+            console.log({"HOLA": rows[0].password});
+            if(rows.length < 1){
+              return res.json({success:false, message:'Usuario o contraseña incorrectas'});
+            }
+            else if(!await bcryptjs.compare(password, rows[0].password)){
+              return res.json({success:false, message:'Usuario o contraseña incorrectas'});
+            }
+            else{
+              //const uuid = await addSession(connection, rows[0].id_usuario);
+              //if(uuid === null || uuid === ''){
+                //return res.json({success:false, message:'No fue posible generar la sesion'});
+              //}
+              delete rows[0].password;
+              return res.json({success:true, message:'Login correcto', data:rows[0]});
+            }
+          }
+          else{
+            return res.json({success:false, message:'No se puede iniciar sesion'});
+          }
+        } catch (error) {
+          console.log(error);
+          res.status(500).json({ error: 'Error al inicair sesion' });
+        }
+        finally{
+          connection.release();
+        }
+    });
+
 }
 
 init();
@@ -74,3 +110,15 @@ app.get('/api/saludo', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
+
+
+const password = 'password123';
+const saltRounds = 10; // Puedes ajustar el número de rondas de sal para aumentar la seguridad
+
+bcryptjs.hash(password, saltRounds, (err, hash) => {
+    if (err) {
+        console.error('Error encriptando la contraseña:', err);
+    } else {
+        console.log('Contraseña encriptada:', hash);
+    }
+});//$2a$10$/e51DohCZPUP9bZGeIZ.zu6KEjJUUd0FGYb8/gLlprjQZiWSO6v56
