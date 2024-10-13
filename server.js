@@ -114,7 +114,7 @@ async function init() {
           if(user && password){
             console.log({user:user, password:password});
             connection = await pool.getConnection();
-            const [rows] = await connection.execute('select nombre, segundo_nombre, apellido_p, apellido_m, usuario, sexo_genero, password, imagen from usuario where usuario = ?', [user]);
+            const [rows] = await connection.execute('select id_usuario, nombre, segundo_nombre, apellido_p, apellido_m, usuario, sexo_genero, password, imagen from usuario where usuario = ?', [user]);
             console.log({"HOLA": rows[0].password});
             if(rows.length < 1){
               return res.json({success:false, message:'Usuario o contraseña incorrectas'});
@@ -221,6 +221,98 @@ async function init() {
         } catch (error) {
           console.log(error);
           res.status(500).json({success:false, message: 'Error crear el registro' });
+        }
+        finally{
+          connection.release();
+        }
+    });
+
+    app.post('/api/updateUsuario', async (req, res) => {
+        console.log(req.body);
+        const {
+            id_usuario,
+            nombre,
+            segundo_nombre,
+            apellido_p,
+            apellido_m,
+            usuario,
+            ciudad,
+            password,
+            sexo_genero,
+            imagen
+          } = req.body;
+        let connection;
+        try {
+          if(usuario && password){
+            const password_hash = await bcryptjs.hash(password, 8);
+            connection = await pool.getConnection();
+
+            const [municipio] = await connection.execute('SELECT id_municipio, nombre_municipio FROM municipio WHERE nombre_municipio = ?',[ciudad]);
+
+            let id_municipio;
+            let id_direccion;
+            if(municipio.length > 0){
+                id_municipio = municipio[0].id_municipio;
+                const [resDireccion] = await connection.execute('SELECT id_direccion FROM usuario WHERE id_usuario = ?',[id_usuario]);
+                id_direccion = resDireccion[0].id_direccion;
+            }else{
+                const resCiudad = await connection.execute(`
+                    INSERT INTO municipio (nombre_municipio) VALUES (?)`,[ciudad]
+                  );
+                id_municipio = resCiudad[0].insertId;
+
+                const resDireccion = await connection.execute(`
+                    INSERT INTO direccion (id_municipio) VALUES (?)`,[id_municipio]
+                  );
+                  id_direccion = resDireccion[0].insertId;
+            }
+            
+            console.log({
+                nombre:nombre,
+                segundo_nombre:segundo_nombre,
+                apellido_p:apellido_p,
+                apellido_m:apellido_m,
+                usuario:usuario,
+                password:password,
+                sexo_genero:sexo_genero,
+                ciudad:ciudad
+            });
+
+
+            console.log({id_municipio:id_municipio});
+            const result = await connection.execute(`
+              UPDATE usuario set
+                nombre = ?,
+                segundo_nombre = ?,
+                apellido_p = ?,
+                apellido_m = ?,
+                password = ?,
+                sexo_genero = ?,
+                id_direccion = ?,
+                imagen = ?,
+                usuario = ?
+                WHERE id_usuario = ?`,
+              [
+                nombre === undefined ? null : nombre,
+                segundo_nombre === undefined ? null : segundo_nombre,
+                apellido_p === undefined ? null : apellido_p,
+                apellido_m === undefined ? null : apellido_m,
+                password_hash === undefined ? null : password_hash,
+                sexo_genero === undefined ? null : sexo_genero,
+                id_direccion,
+                imagen === undefined ? null : imagen,
+                usuario,
+                id_usuario
+              ]
+            );
+            res.json({success:true, message:"usuario actualizado"});
+          }
+          else{
+            return res.json({success:false, message:'No se puede actualizar el usuario'});
+          }
+        } catch (error) {
+          console.log(error);
+          res.status(500).json({success:false, message: 'Error actualizar el registro' });
         }
         finally{
           connection.release();
