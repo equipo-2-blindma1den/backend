@@ -110,14 +110,41 @@ async function init() {
         }
     });
 
+    app.get('/api/asistenciaEvento', async (req, res) => {
+        const { id_usuario, id_evento } = req.query;
+        console.log({id_usuario:id_usuario, id_evento:id_evento});
+        let connection;
+        try {
+          connection = await pool.getConnection();
+          const resCiudad = await connection.execute(`
+            INSERT INTO participacion (id_evento, id_usuario) VALUES (?, ?)`,[id_evento, id_usuario]
+          );
+          if(resCiudad[0].insertId){
+            res.status(200).json({success: true, message: 'Evento registrado'});
+          }else{
+            res.json({success: false, message: 'Error al insertar registros' });
+          }
+          
+          
+        } catch (error) {
+          console.log(error);
+          res.status(500).json({success: false, message: 'Error al buscar registros' });
+        }
+        finally{
+          connection.release();
+        }
+    });
+
     app.get('/api/login', async (req, res) => {
         const { user, password } = req.query;
         try {
           if(user && password){
             console.log({user:user, password:password});
             connection = await pool.getConnection();
-            const [rows] = await connection.execute('select id_usuario, nombre, segundo_nombre, apellido_p, apellido_m, usuario, sexo_genero, password, imagen from usuario where usuario = ?', [user]);
-            console.log({"HOLA": rows[0].password});
+            const [rows] = await connection.execute(`
+                select usu.id_usuario, usu.nombre, usu.segundo_nombre, usu.apellido_p, usu.apellido_m, usu.usuario, usu.sexo_genero, usu.password, usu.imagen, mun.nombre_municipio as ciudad
+                from usuario usu inner join direccion dir on (usu.id_direccion = dir.id_direccion)
+                inner join municipio mun on (dir.id_municipio = mun.id_municipio) where usuario = ?`, [user]);
             if(rows.length < 1){
               return res.json({success:false, message:'Usuario o contraseña incorrectas'});
             }
@@ -215,7 +242,7 @@ async function init() {
                 resDireccion[0].insertId
               ]
             );
-            res.json({success:true, message:"usuario creado"});
+            res.json({success:true, message:"usuario creado", data:{id_usuario:result[0].insertId}});
           }
           else{
             return res.json({success:false, message:'No se puede registrar el usuario'});
