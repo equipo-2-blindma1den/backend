@@ -24,7 +24,7 @@ async function init() {
         try {
           connection = await pool.getConnection();
           const [rows] = await connection.execute(`
-                    SELECT
+                    select
                     ev.titulo,
                     ev.descripcion,
                     ev.imagen,
@@ -37,15 +37,15 @@ async function init() {
                         ed.nombre_estado, ', ',
                         pa.nombre_pais
                     ) as direccion
-                    FROM EVENTOS EV
-                    INNER JOIN ORGANIZACION ORG ON (EV.ID_ORGANIZACION = ORG.ID_ORGANIZACION)
-                    INNER JOIN AUTORIZACION AUT ON (EV.ID_AUTORIZACION = AUT.ID_AUTORIZACION)
-                    INNER JOIN DIRECCION DIR ON (EV.ID_DIRECCION = DIR.ID_DIRECCION)
-                    INNER JOIN PAIS PA ON (DIR.ID_PAIS = PA.ID_PAIS)
-                    INNER JOIN ESTADO ED ON (DIR.ID_ESTADO = ED.ID_ESTADO)
-                    INNER JOIN MUNICIPIO MUN ON (DIR.ID_MUNICIPIO = MUN.ID_MUNICIPIO)
-                    INNER JOIN COLONIA COL ON (DIR.ID_COLONIA = COL.ID_COLONIA)
-                    WHERE AUT.ESTATUS = 'A'
+                    from eventos ev
+                    inner join organizacion org on (ev.id_organizacion = org.id_organizacion)
+                    inner join autorizacion aut on (ev.id_autorizacion = aut.id_autorizacion)
+                    inner join direccion dir on (ev.id_direccion = dir.id_direccion)
+                    inner join pais pa on (dir.id_pais = pa.id_pais)
+                    inner join estado ed on (dir.id_estado = ed.id_estado)
+                    inner join municipio mun on (dir.id_municipio = mun.id_municipio)
+                    inner join colonia col on (dir.id_colonia = col.id_colonia)
+                    where aut.estatus = 'A'
                     `);
           if(rows.length > 0){
             res.status(200).json({success: true, data: rows});
@@ -67,7 +67,7 @@ async function init() {
         try {
           connection = await pool.getConnection();
           const [rows] = await connection.execute(`
-                    SELECT 
+                   select 
                     ev.titulo, 
                     ev.descripcion,
                     ev.imagen,
@@ -80,17 +80,17 @@ async function init() {
                         ed.nombre_estado, ', ',
                         pa.nombre_pais
                     ) as direccion
-                    FROM 
-                    PARTICIPACION PAR INNER JOIN EVENTOS EV ON(EV.ID_EVENTO = PAR.ID_EVENTO)
-                    INNER JOIN USUARIO USU ON(PAR.ID_USUARIO = USU.ID_USUARIO) 
-                    INNER JOIN ORGANIZACION ORG ON (EV.ID_ORGANIZACION = ORG.ID_ORGANIZACION)
-                    INNER JOIN AUTORIZACION AUT ON (EV.ID_AUTORIZACION = AUT.ID_AUTORIZACION)
-                    INNER JOIN DIRECCION DIR ON (EV.ID_DIRECCION = DIR.ID_DIRECCION)
-                    INNER JOIN PAIS PA ON (DIR.ID_PAIS = PA.ID_PAIS)
-                    INNER JOIN ESTADO ED ON (DIR.ID_ESTADO = ED.ID_ESTADO)
-                    INNER JOIN MUNICIPIO MUN ON (DIR.ID_MUNICIPIO = MUN.ID_MUNICIPIO)
-                    INNER JOIN COLONIA COL ON (DIR.ID_COLONIA = COL.ID_COLONIA)
-                    WHERE AUT.ESTATUS = 'A' AND USU.USUARIO = ?;
+                    from 
+                    participacion par inner join eventos ev on(ev.id_evento = par.id_evento)
+                    inner join usuario usu on(par.id_usuario = usu.id_usuario) 
+                    inner join organizacion org on (ev.id_organizacion = org.id_organizacion)
+                    inner join autorizacion aut on (ev.id_autorizacion = aut.id_autorizacion)
+                    inner join direccion dir on (ev.id_direccion = dir.id_direccion)
+                    inner join pais pa on (dir.id_pais = pa.id_pais)
+                    inner join estado ed on (dir.id_estado = ed.id_estado)
+                    inner join municipio mun on (dir.id_municipio = mun.id_municipio)
+                    inner join colonia col on (dir.id_colonia = col.id_colonia)
+                    where aut.estatus = 'A' and usu.usuario = ?
                     `, [user]);
           if(rows.length > 0){
             res.status(200).json({success: true, data: rows});
@@ -112,7 +112,7 @@ async function init() {
           if(user && password){
             console.log({user:user, password:password});
             connection = await pool.getConnection();
-            const [rows] = await connection.execute('SELECT nombre, segundo_nombre, apellido_p, apellido_m, usuario, sexo_genero, password, imagen from USUARIO WHERE USUARIO = ?', [user]);
+            const [rows] = await connection.execute('select nombre, segundo_nombre, apellido_p, apellido_m, usuario, sexo_genero, password, imagen from usuario where usuario = ?', [user]);
             console.log({"HOLA": rows[0].password});
             if(rows.length < 1){
               return res.json({success:false, message:'Usuario o contraseña incorrectas'});
