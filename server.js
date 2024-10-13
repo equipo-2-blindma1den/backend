@@ -301,29 +301,44 @@ async function init() {
           } = req.body;
         let connection;
         try {
-          if(usuario && password){
-            const password_hash = await bcryptjs.hash(password, 8);
+          if(id_usuario){
+            let password_hash;
+            if(password){
+                password_hash = await bcryptjs.hash(password, 8);
+            }
+            
             connection = await pool.getConnection();
-
-            const [municipio] = await connection.execute('SELECT id_municipio, nombre_municipio FROM municipio WHERE nombre_municipio = ?',[ciudad]);
-
             let id_municipio;
             let id_direccion;
-            if(municipio.length > 0){
-                id_municipio = municipio[0].id_municipio;
-                const [resDireccion] = await connection.execute('SELECT id_direccion FROM usuario WHERE id_usuario = ?',[id_usuario]);
-                id_direccion = resDireccion[0].id_direccion;
-            }else{
-                const resCiudad = await connection.execute(`
-                    INSERT INTO municipio (nombre_municipio) VALUES (?)`,[ciudad]
-                  );
-                id_municipio = resCiudad[0].insertId;
-
-                const resDireccion = await connection.execute(`
-                    INSERT INTO direccion (id_municipio) VALUES (?)`,[id_municipio]
-                  );
-                  id_direccion = resDireccion[0].insertId;
+            const [user_result] = await connection.execute('SELECT * FROM usuario WHERE id_usuario = ?',[id_usuario]);
+            if(ciudad != undefined){
+                const [municipio] = await connection.execute('SELECT id_municipio, nombre_municipio FROM municipio WHERE nombre_municipio = ?',[ciudad]);
+                
+    
+                if(municipio.length > 0){
+                    id_municipio = municipio[0].id_municipio;
+                    const [resDireccion] = await connection.execute('SELECT id_direccion FROM usuario WHERE id_usuario = ?',[id_usuario]);
+                    id_direccion = resDireccion[0].id_direccion;
+                    if(id_direccion == null){
+                        const resDireccion = await connection.execute(`
+                            INSERT INTO direccion (id_municipio) VALUES (?)`,[id_municipio]
+                          );
+                          id_direccion = resDireccion[0].insertId;
+                    }
+                    console.log({id_direccion:id_direccion});
+                }else{
+                    const resCiudad = await connection.execute(`
+                        INSERT INTO municipio (nombre_municipio) VALUES (?)`,[ciudad]
+                      );
+                    id_municipio = resCiudad[0].insertId;
+    
+                    const resDireccion = await connection.execute(`
+                        INSERT INTO direccion (id_municipio) VALUES (?)`,[id_municipio]
+                      );
+                      id_direccion = resDireccion[0].insertId;
+                }
             }
+ 
             
             console.log({
                 nombre:nombre,
@@ -336,8 +351,8 @@ async function init() {
                 ciudad:ciudad
             });
 
-
-            console.log({id_municipio:id_municipio});
+            userTmp = user_result[0];
+            console.log(userTmp);
             const result = await connection.execute(`
               UPDATE usuario set
                 nombre = ?,
@@ -351,15 +366,15 @@ async function init() {
                 usuario = ?
                 WHERE id_usuario = ?`,
               [
-                nombre === undefined ? null : nombre,
-                segundo_nombre === undefined ? null : segundo_nombre,
-                apellido_p === undefined ? null : apellido_p,
-                apellido_m === undefined ? null : apellido_m,
-                password_hash === undefined ? null : password_hash,
-                sexo_genero === undefined ? null : sexo_genero,
-                id_direccion,
-                imagen === undefined ? null : imagen,
-                usuario,
+                nombre === undefined ? userTmp.nombre : nombre,
+                segundo_nombre === undefined ? userTmp.segundo_nombre : segundo_nombre,
+                apellido_p === undefined ? userTmp.apellido_p : apellido_p,
+                apellido_m === undefined ? userTmp.apellido_m : apellido_m,
+                password_hash === undefined || null ? userTmp.password : password_hash,
+                sexo_genero === undefined ? userTmp.sexo_genero : sexo_genero,
+                id_direccion === undefined ? userTmp.id_direccion : id_direccion,
+                imagen === undefined ? userTmp.imagen : imagen,
+                usuario === undefined ? userTmp.usuario : usuario,
                 id_usuario
               ]
             );
