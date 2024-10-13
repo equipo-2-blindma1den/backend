@@ -8,7 +8,7 @@ const dbConfig = JSON.parse(fs.readFileSync('bdConection.json', 'utf8'));
 
 // Inicializa la aplicación de Express
 const app = express();
-
+app.use(express.json());//se usa para recibir el json de las peticiones post
 // Define el puerto en el que correrá la API
 const PORT = process.env.PORT || 3000;
 
@@ -93,6 +93,70 @@ async function init() {
         }
     });
 
+    app.post('/api/signup', async (req, res) => {
+        console.log('holas');
+        console.log(req.body);
+        const {
+            nombre,
+            segundo_nombre,
+            apellido_p,
+            apellido_m,
+            usuario,
+            password,
+            sexo_genero
+          } = req.body;
+        let connection;
+        try {
+          if(usuario && password && nombre){
+            const password_hash = await bcryptjs.hash(password, 8);
+            connection = await pool.getConnection();
+            const [user_result] = await connection.execute('SELECT * FROM USUARIO WHERE USUARIO = ?',[usuario]);
+            if(user_result.length > 0){
+              return res.json({success:false, message:'El usario ya exite'});
+            }
+ 
+            console.log({
+                nombre:nombre,
+                segundo_nombre:segundo_nombre,
+                apellido_p:apellido_p,
+                apellido_m:apellido_m,
+                usuario:usuario,
+                password:password,
+                sexo_genero:sexo_genero
+            });
+            const result = await connection.execute(`
+              INSERT INTO usuario (
+                nombre,
+                segundo_nombre,
+                apellido_p,
+                apellido_m,
+                usuario,
+                password,
+                sexo_genero) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [
+                nombre,
+                segundo_nombre,
+                apellido_p,
+                apellido_m,
+                usuario,
+                password_hash,
+                sexo_genero
+              ]
+            );
+            res.json({success:true, message:"usuario creado"});
+          }
+          else{
+            return res.json({success:false, message:'No se puede registrar el usuario'});
+          }
+        } catch (error) {
+          console.log(error);
+          res.status(500).json({ error: 'Error crear el registro' });
+        }
+        finally{
+          connection.release();
+        }
+    });
 }
 
 init();
