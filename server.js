@@ -54,6 +54,7 @@ async function init() {
             res.json({success: false, message: 'No existen registros'});
           }
         } catch (error) {
+          console.log(error);
           res.status(500).json({success: false, message: 'Error al buscar registros' });
         }
         finally{
@@ -99,6 +100,7 @@ async function init() {
             res.json({success: false, message: 'No existen registros'});
           }
         } catch (error) {
+          console.error(error)
           res.status(500).json({success: false, message: 'Error al buscar registros' });
         }
         finally{
@@ -150,19 +152,32 @@ async function init() {
             apellido_p,
             apellido_m,
             usuario,
+            ciudad,
             password,
             sexo_genero
           } = req.body;
         let connection;
         try {
-          if(usuario && password && nombre){
+          if(usuario && password){
             const password_hash = await bcryptjs.hash(password, 8);
             connection = await pool.getConnection();
-            const [user_result] = await connection.execute('SELECT * FROM USUARIO WHERE USUARIO = ?',[usuario]);
+            const [user_result] = await connection.execute('SELECT * FROM usuario WHERE usuario = ?',[usuario]);
+            const [municipio] = await connection.execute('SELECT id_municipio, nombre_municipio FROM municipio WHERE nombre_municipio = ?',[ciudad]);
             if(user_result.length > 0){
-              return res.json({success:false, message:'El usario ya exite'});
+              return res.json({success:false, message:'El usario ya existe'});
             }
- 
+            let id_municipio;
+            if(municipio.length > 0){
+                id_municipio = municipio[0].id_municipio
+            }else{
+                const resCiudad = await connection.execute(`
+                    INSERT INTO municipio (nombre_municipio) VALUES (?)`,[ciudad]
+                  );
+                id_municipio = resCiudad[0].insertId;
+            }
+            const resDireccion = await connection.execute(`
+                INSERT INTO direccion (id_municipio) VALUES (?)`,[id_municipio]
+              );
             console.log({
                 nombre:nombre,
                 segundo_nombre:segundo_nombre,
@@ -170,8 +185,12 @@ async function init() {
                 apellido_m:apellido_m,
                 usuario:usuario,
                 password:password,
-                sexo_genero:sexo_genero
+                sexo_genero:sexo_genero,
+                ciudad:ciudad
             });
+
+
+            console.log({id_municipio:id_municipio});
             const result = await connection.execute(`
               INSERT INTO usuario (
                 nombre,
@@ -180,16 +199,18 @@ async function init() {
                 apellido_m,
                 usuario,
                 password,
-                sexo_genero) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                sexo_genero,
+                id_direccion) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
               [
-                nombre,
-                segundo_nombre,
-                apellido_p,
-                apellido_m,
-                usuario,
-                password_hash,
-                sexo_genero
+                nombre === undefined ? null : nombre,
+                segundo_nombre === undefined ? null : segundo_nombre,
+                apellido_p === undefined ? null : apellido_p,
+                apellido_m === undefined ? null : apellido_m,
+                usuario === undefined ? null : usuario,
+                password_hash === undefined ? null : password_hash,
+                sexo_genero === undefined ? null : sexo_genero,
+                resDireccion[0].insertId
               ]
             );
             res.json({success:true, message:"usuario creado"});
