@@ -135,6 +135,34 @@ async function init() {
         }
     });
 
+    app.get('/api/getUsuarioById', async (req, res) => {
+        const { id_usuario } = req.query;
+        console.log({id_usuario:id_usuario});
+        let connection;
+        try {
+          connection = await pool.getConnection();
+          const [rows] = await connection.execute(`
+                select usu.nombre, usu.segundo_nombre, usu.apellido_p, usu.apellido_m, usu.usuario, usu.sexo_genero, usu.imagen, mun.nombre_municipio as ciudad
+                from usuario usu inner join direccion dir on (usu.id_direccion = dir.id_direccion)
+                inner join municipio mun on (dir.id_municipio = mun.id_municipio) where id_usuario = ?`, [id_usuario]);
+          
+          if(rows.length > 0){
+            res.status(200).json({success: true, data: rows});
+          }
+          else{
+            res.json({success: false, message: 'No existe el usuario' });
+          }
+          
+          
+        } catch (error) {
+          console.log(error);
+          res.status(500).json({success: false, message: 'Error al buscar registros' });
+        }
+        finally{
+          connection.release();
+        }
+    });
+
     app.get('/api/login', async (req, res) => {
         const { user, password } = req.query;
         try {
@@ -191,6 +219,7 @@ async function init() {
             const password_hash = await bcryptjs.hash(password, 8);
             connection = await pool.getConnection();
             const [user_result] = await connection.execute('SELECT * FROM usuario WHERE usuario = ?',[usuario]);
+            console.log({user_result:user_result});
             const [municipio] = await connection.execute('SELECT id_municipio, nombre_municipio FROM municipio WHERE nombre_municipio = ?',[ciudad]);
             if(user_result.length > 0){
               return res.json({success:false, message:'El usario ya existe'});
