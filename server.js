@@ -3,12 +3,14 @@ const express = require('express');
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const bcryptjs = require('bcryptjs');
+const cors = require('cors');
 
 const dbConfig = JSON.parse(fs.readFileSync('bdConection.json', 'utf8'));
 
 // Inicializa la aplicación de Express
 const app = express();
 app.use(express.json());//se usa para recibir el json de las peticiones post
+app.use(cors());
 // Define el puerto en el que correrá la API
 const PORT = process.env.PORT || 3000;
 
@@ -23,17 +25,18 @@ async function init() {
           connection = await pool.getConnection();
           const [rows] = await connection.execute(`
                     SELECT
-                    EV.TITULO,
-                    EV.DESCRIPCION,
-                    DATE_FORMAT(EV.FECHA, '%d/%m/%Y') AS FECHA,
-                    ORG.NOMBRE AS "NOMBRE_ORG",
-                    CONCAT(
-                        DIR.CALLE, ', ',
-                        COL.NOMBRE_COLONIA, ', ',
-                        MUN.NOMBRE_MUNICIPIO, ', ',
-                        ED.NOMBRE_ESTADO, ', ',
-                        PA.NOMBRE_PAIS
-                    ) AS DIRECCION
+                    ev.titulo,
+                    ev.descripcion,
+                    ev.imagen,
+                    date_format(ev.fecha, '%d/%m/%y') as fecha,
+                    org.nombre as "nombre_org",
+                    concat(
+                        dir.calle, ', ',
+                        col.nombre_colonia, ', ',
+                        mun.nombre_municipio, ', ',
+                        ed.nombre_estado, ', ',
+                        pa.nombre_pais
+                    ) as direccion
                     FROM EVENTOS EV
                     INNER JOIN ORGANIZACION ORG ON (EV.ID_ORGANIZACION = ORG.ID_ORGANIZACION)
                     INNER JOIN AUTORIZACION AUT ON (EV.ID_AUTORIZACION = AUT.ID_AUTORIZACION)
@@ -45,13 +48,58 @@ async function init() {
                     WHERE AUT.ESTATUS = 'A'
                     `);
           if(rows.length > 0){
-            res.status(200).json({success: true, result: rows});
+            res.status(200).json({success: true, data: rows});
           }
           else{
             res.json({success: false, message: 'No existen registros'});
           }
         } catch (error) {
-          res.status(500).json({success: false, error: 'Error al buscar registros' });
+          res.status(500).json({success: false, message: 'Error al buscar registros' });
+        }
+        finally{
+          connection.release();
+        }
+    });
+
+    app.get('/api/getEventosByUser', async (req, res) => {
+        const { user } = req.query;
+        let connection;
+        try {
+          connection = await pool.getConnection();
+          const [rows] = await connection.execute(`
+                    SELECT 
+                    ev.titulo, 
+                    ev.descripcion,
+                    ev.imagen,
+                    date_format(ev.fecha, '%d/%m/%y') as fecha,
+                    org.nombre as "nombre_org",
+                    concat(
+                        dir.calle, ', ',
+                        col.nombre_colonia, ', ',
+                        mun.nombre_municipio, ', ',
+                        ed.nombre_estado, ', ',
+                        pa.nombre_pais
+                    ) as direccion
+                    FROM 
+                    PARTICIPACION PAR INNER JOIN EVENTOS EV ON(EV.ID_EVENTO = PAR.ID_EVENTO)
+                    INNER JOIN USUARIO USU ON(PAR.ID_USUARIO = USU.ID_USUARIO) 
+                    INNER JOIN ORGANIZACION ORG ON (EV.ID_ORGANIZACION = ORG.ID_ORGANIZACION)
+                    INNER JOIN AUTORIZACION AUT ON (EV.ID_AUTORIZACION = AUT.ID_AUTORIZACION)
+                    INNER JOIN DIRECCION DIR ON (EV.ID_DIRECCION = DIR.ID_DIRECCION)
+                    INNER JOIN PAIS PA ON (DIR.ID_PAIS = PA.ID_PAIS)
+                    INNER JOIN ESTADO ED ON (DIR.ID_ESTADO = ED.ID_ESTADO)
+                    INNER JOIN MUNICIPIO MUN ON (DIR.ID_MUNICIPIO = MUN.ID_MUNICIPIO)
+                    INNER JOIN COLONIA COL ON (DIR.ID_COLONIA = COL.ID_COLONIA)
+                    WHERE AUT.ESTATUS = 'A' AND USU.USUARIO = ?;
+                    `, [user]);
+          if(rows.length > 0){
+            res.status(200).json({success: true, data: rows});
+          }
+          else{
+            res.json({success: false, message: 'No existen registros'});
+          }
+        } catch (error) {
+          res.status(500).json({success: false, message: 'Error al buscar registros' });
         }
         finally{
           connection.release();
@@ -86,13 +134,13 @@ async function init() {
           }
         } catch (error) {
           console.log(error);
-          res.status(500).json({ error: 'Error al inicair sesion' });
+          res.status(500).json({success:false, message: 'Error al inicair sesion' });
         }
         finally{
           connection.release();
         }
     });
-
+    
     app.post('/api/signup', async (req, res) => {
         console.log('holas');
         console.log(req.body);
@@ -151,7 +199,7 @@ async function init() {
           }
         } catch (error) {
           console.log(error);
-          res.status(500).json({ error: 'Error crear el registro' });
+          res.status(500).json({success:false, message: 'Error crear el registro' });
         }
         finally{
           connection.release();
