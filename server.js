@@ -25,6 +25,7 @@ async function init() {
           connection = await pool.getConnection();
           const [rows] = await connection.execute(`
                     select
+                    ev.id_evento,
                     ev.titulo,
                     ev.descripcion,
                     ev.imagen,
@@ -69,6 +70,7 @@ async function init() {
           connection = await pool.getConnection();
           const [rows] = await connection.execute(`
                    select 
+                    ev.id_evento,
                     ev.titulo, 
                     ev.descripcion,
                     ev.imagen,
